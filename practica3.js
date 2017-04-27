@@ -6,7 +6,7 @@ window.addEventListener("load",function() {
 
 	var Q = window.Q = Quintus()
 			
-			.include("Sprites, Scenes, Input, Touch, UI, TMX, Anim, 2D")
+			.include("Sprits, Scenes, Input, Touch, UI, TMX, Anim, 2D")
 
 			.setup({ width: 320, height: 480 })
 
