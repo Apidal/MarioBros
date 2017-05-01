@@ -33,6 +33,10 @@ window.addEventListener("load",function() {
 			die: { frames: [2] }
 	});
 
+	Q.animations('coin_anim', {
+			normal: { frames: [0,1,2], rate: 1/15, loop: false}
+	});
+
 	Q.Sprite.extend("Player",{
 		init: function(p) {
 		    this._super(p, { sheet: "marioR", sprite: "mario_anim" });
@@ -46,7 +50,6 @@ window.addEventListener("load",function() {
 		},
 
 		step: function(dt) {
-			
 			if(this.p.vy !== 0 && this.p.vx !== 0){
 				this.play("jump_" + this.p.direction);
 			}
@@ -134,7 +137,7 @@ window.addEventListener("load",function() {
 			self.muerto = true;
 
 			this.play("die");
-			this.p.vy = 300;
+			//this.p.vy = 300;
 			setTimeout(function(){ self.destroy(); }, 500);
 		}
 
@@ -146,7 +149,21 @@ window.addEventListener("load",function() {
 		}
 	});
 
+	Q.Sprite.extend("Coin", {
+	    init: function(p) {
+	        this._super(p, { sheet: "coin", sprite: "coin_anim", gravity : 0 });
+	        this.add('2d, tween, animation');
+	        this.on("hit.sprite",function(collision) {
+	        	if(collision.obj.isA("Player")) {
+					this.animate({ y: this.p.y - 50 }, 1/4, Q.Easing.Quadratic.InOut, { callback: function() {this.destroy()}});
+					Q.state.inc("coin", 1);
+				}
+	        });
+	    }            
+	});
+
 	Q.scene("level1", function(stage){
+		Q.state.reset({ coin: 0});
 		Q.stageTMX("level.tmx", stage);
 		stage.add("viewport");
 
@@ -156,15 +173,21 @@ window.addEventListener("load",function() {
 
 		var player = stage.insert(new Q.Player({ x: 150, y: 380 }));
 
-		var goomba1 = stage.insert(new Q.Goomba({ x: 1500, y: 496, vx: 100 }));
-		var goomba2 = stage.insert(new Q.Goomba({ x: 1600, y: 496, vx: 100 }));
+		stage.add("viewport").follow(player);
 
-		var bloopa = stage.insert(new Q.Bloopa({ x: 1240, y: 482 }));
+		var levelAssets = [
+                ["Goomba", { x: 1500, y: 496, vx: 100 }],
+                ["Goomba", { x: 1600, y: 496, vx: 100 }],
+                ["Bloopa", { x: 1240, y: 482 }],
+                ["Princess", { x: 2021, y: 452 }],
+                ["Coin", {x: 250, y: 470}],
+                ["Coin", {x: 350, y: 470}],
+                ["Coin", {x: 450, y: 470}],
+                ["Coin", {x: 550, y: 470}]
+        ];
 
-		var princess = stage.insert(new Q.Princess({ x: 2021, y: 452 }));
-
-  
-  		stage.add("viewport").follow(player);
+        stage.loadAssets(levelAssets); 
+  		
 	});
 
 	Q.scene('endGame',function(stage) {
@@ -176,6 +199,7 @@ window.addEventListener("load",function() {
 	                                           label: "Play Again" }));        
 	 	var label = box.insert(new Q.UI.Text({ x:10, y: -10 - button.p.h, 
 	                                        label: stage.options.label }));
+
 	  	button.on("click",function() {
 		    Q.clearStages();
 		    Q.stageScene('mainTitle');
@@ -194,6 +218,7 @@ window.addEventListener("load",function() {
 		var empezarNivel = function(){
 			Q.clearStages();
 		    Q.stageScene('level1');
+		    Q.stageScene("coin",1);
 		};
 
 	  	Q.input.on("confirm", function(){
@@ -206,12 +231,21 @@ window.addEventListener("load",function() {
 	
 	});
 
-	Q.loadTMX("level.tmx, mario_small.png, mario_small.json, goomba.png, goomba.json, bloopa.png, bloopa.json, princess.png, mainTitle.png", function() {
+	Q.scene("coin", function(stage) {
+		var label = stage.insert(new Q.UI.Text({x: Q.width/2, y: 50, label: "Coins: 0"}));
+		Q.state.on("change.coin", this, function( coin ) {
+			label.p.label = "Coins: " + coin;
+		});	
+	});
+
+	Q.loadTMX("level.tmx, mario_small.png, mario_small.json, goomba.png, goomba.json, bloopa.png, bloopa.json, princess.png, mainTitle.png, coin.png, coin.json", function() {
   		Q.compileSheets("mario_small.png","mario_small.json");
   		Q.compileSheets("goomba.png","goomba.json");
   		Q.compileSheets("bloopa.png","bloopa.json");
+  		Q.compileSheets("coin.png","coin.json");
 
-  		Q.stageScene("mainTitle"); 
+  		Q.stageScene("mainTitle");
+  		
 	});
 
 	
