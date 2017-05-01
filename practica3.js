@@ -4,15 +4,11 @@
 
 window.addEventListener("load",function() {
 
-	var Q = window.Q = Quintus()
-			
-			.include("Sprites, Scenes, Input, Touch, UI, TMX, Anim, 2D")
-
+	var Q = window.Q = Quintus({ audioSupported: [ 'mp3','ogg' ] })
+			.include("Sprites, Scenes, Input, Touch, UI, TMX, Anim, 2D, Audio")
 			.setup({ width: 320, height: 480 })
-
-			.controls().touch();
-
-
+			.controls().touch()
+			.enableSound();
 
 	Q.animations('mario_anim', {
 			stand_right: { frames: [0] },
@@ -78,9 +74,9 @@ window.addEventListener("load",function() {
 		},
 
 		morir: function() {
+			Q.audio.play("music_die.mp3");
 			this.play("die");
 			Q.stageScene("endGame", 2, { label: "You Lose!" }); 
-    		
     		Q.stage().pause();
 		}
 	});
@@ -89,7 +85,6 @@ window.addEventListener("load",function() {
 		init: function(p) {
 		    this._super(p, { sheet: "goomba", sprite: "goomba_anim" });
 		    this.add('2d, aiBounce, animation, defaultEnemy');
-
 		}
 	});
 
@@ -111,9 +106,9 @@ window.addEventListener("load",function() {
 
 			this.on("hit.sprite",function(collision) {
       			if(collision.obj.isA("Player")) {
+      				Q.audio.play("music_level_complete.mp3");
       				Q.stage().pause();
         			Q.stageScene("endGame", 2, { label: "You Won!" }); 
-       
       			}
     		});
 		}
@@ -125,6 +120,7 @@ window.addEventListener("load",function() {
 	        this.add('2d, tween, animation');
 	        this.on("bump.left,bump.right,bump.bottom,bump.top",function(collision) {
 	        	if(collision.obj.isA("Player")) {
+	        		Q.audio.play("coin.mp3");
 	        		this.del('2d');
 					this.animate({ y: this.p.y - 50 }, 1/4, Q.Easing.Quadratic.InOut, { callback: function() {this.destroy()}});
 					Q.state.inc("coin", 1);
@@ -145,7 +141,6 @@ window.addEventListener("load",function() {
 				if(collision.obj.isA("Player")) { 
 					this.play("die");
 					collision.obj.p.vy = -300;
-					
 				}
 			});
 
@@ -180,9 +175,7 @@ window.addEventListener("load",function() {
                 ["Coin", { x: 450, y: 470 }],
                 ["Coin", { x: 550, y: 470 }]
         ];
-
         stage.loadAssets(levelAssets); 
-  		
 	});
 
 	Q.scene('endGame',function(stage) {
@@ -199,6 +192,7 @@ window.addEventListener("load",function() {
 		    Q.clearStages();
 		    Q.stageScene('mainTitle');
 	  	});
+	  	Q.audio.stop('music_main.mp3');
 	  	box.fit(20);
 	});
 
@@ -215,6 +209,7 @@ window.addEventListener("load",function() {
 		    Q.stageScene('level1');
 		    Q.stageScene("coin",1);
 		    Q.stageScene("live",2);
+		    Q.audio.play("music_main.mp3", { loop: true });
 		};
 
 	  	Q.input.on("confirm", function(){
@@ -241,7 +236,7 @@ window.addEventListener("load",function() {
 		});	
 	});
 
-	Q.load(["mario_small.png", "mario_small.json", "goomba.png", "goomba.json", "bloopa.png", "bloopa.json", "princess.png", "mainTitle.png", "coin.png", "coin.json"], function() {
+	Q.load(["mario_small.png", "mario_small.json", "goomba.png", "goomba.json", "bloopa.png", "bloopa.json", "princess.png", "mainTitle.png", "coin.png", "coin.json", "coin.mp3", "coin.ogg", "music_die.mp3", "music_die.ogg", "music_level_complete.mp3", "music_level_complete.ogg", "music_main.mp3", "music_main.ogg"], function() {
   		Q.compileSheets("mario_small.png","mario_small.json");
   		Q.compileSheets("goomba.png","goomba.json");
   		Q.compileSheets("bloopa.png","bloopa.json");
