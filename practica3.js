@@ -13,6 +13,7 @@ window.addEventListener("load",function() {
 			.controls().touch();
 
 
+
 	Q.animations('mario_anim', {
 			stand_right: { frames: [0] },
 			stand_left: { frames: [14] },
@@ -25,52 +26,60 @@ window.addEventListener("load",function() {
 
 	Q.animations('goomba_anim', {
 			run: { frames: [0,1], rate: 1/15, loop: false },
-			die: { frames: [2] }
+			die: { frames: [2], loop: false, rate: 1/15, trigger: "die" }
 	});
 
 	Q.animations('bloopa_anim', {
-			normal: { frames: [0, 1], rate: 1/5, loop: true },
-			die: { frames: [2] }
+			normal: { frames: [0, 1], rate: 1/5, loop: true},
+			die: { frames: [2], loop: false, rate: 1/15, trigger: "die"}
 	});
 
 	Q.animations('coin_anim', {
-			normal: { frames: [0,1,2], rate: 1/15, loop: false}
+			normal: { frames: [0,1,2], rate: 1/15, loop: true}
 	});
 
 	Q.Sprite.extend("Player",{
 		init: function(p) {
 		    this._super(p, { sheet: "marioR", sprite: "mario_anim" });
 		    this.add('2d, platformerControls, animation');
-		    this.on("hit.sprite",function(collision) {
-      			if(collision.obj.isA("Princess")) {
-        			Q.stageScene("endGame",2, { label: "You Won!" }); 
-        			this.destroy();
-      			}
-    		});
+		    
 		},
 
 		step: function(dt) {
-			if(this.p.vy !== 0 && this.p.vx !== 0){
-				this.play("jump_" + this.p.direction);
-			}
-			else if(this.p.vx > 0) {
-		  		this.play("run_right");
-		  	} 
-		  	else if(this.p.vx < 0) {
-				this.play("run_left");
-			}
-			else{
-				this.play("stand_" + this.p.direction);
-			}
 
 			if(this.p.y > 580){
-				this.morir();
+				this.bajarVidas();
         	}
+
+        	if(Q.state.p.live > 0){
+				if(this.p.vy !== 0 && this.p.vx !== 0){
+					this.play("jump_" + this.p.direction);
+				}
+				else if(this.p.vx > 0) {
+			  		this.play("run_right");
+			  	} 
+			  	else if(this.p.vx < 0) {
+					this.play("run_left");
+				}
+				else{
+					this.play("stand_" + this.p.direction);
+				}
+			}
+			else{
+				this.morir()
+			}
+			
+		},
+
+		bajarVidas: function(){
+			this.p.x = 150;
+			this.p.y = 380;
+			Q.state.dec("live", 1);
 		},
 
 		morir: function() {
 			this.play("die");
-			Q.stageScene("endGame",2, { label: "You Lose!" }); 
+			Q.stageScene("endGame", 2, { label: "You Lose!" }); 
     		
     		Q.stage().pause();
 		}
@@ -79,73 +88,34 @@ window.addEventListener("load",function() {
 	Q.Sprite.extend("Goomba",{
 		init: function(p) {
 		    this._super(p, { sheet: "goomba", sprite: "goomba_anim" });
-		    this.add('2d, aiBounce, animation');
+		    this.add('2d, aiBounce, animation, defaultEnemy');
 
-		    this.on("bump.left, bump.right",function(collision) {
-		    	if(collision.obj.isA("Player")) {
-		    		collision.obj.p.vy = 500;
-		        	collision.obj.morir();
-		      	}
-		    });
-
-		    this.on("bump.top",function(collision) {
-		    	var self = this;
-		      	if(collision.obj.isA("Player")) { 
-		      		collision.obj.p.vy = -300;
-		        	this.morir(self);
-		      	}
-		    });
-		},
-
-		morir: function(self) {
-			this.play("die");
-			setTimeout(function(){ self.destroy(); }, 500);
 		}
-
 	});
 
 	Q.Sprite.extend("Bloopa",{
 		
 		init: function(p) {
-			this.muerto = false;
 		    this._super(p, { sheet: "bloopa", sprite: "bloopa_anim" });
-		    this.add('2d, aiBounce, animation');
+		    this.add('2d, aiBounce, animation, defaultEnemy');
 
-		    this.on("bump.left,bump.right,bump.bottom",function(collision) {
-		      	if(collision.obj.isA("Player")) {
-		      		collision.obj.morir();
-		      	}
-		    });
-
-		    this.on("bump.top",function(collision) {
-		    	var self = this;
-		      	if(collision.obj.isA("Player")) { 
-		        	this.morir(self);
-		        	collision.obj.p.vy = -300;
-				}
+		    this.on("bump.bottom", function(collision){
+		    	this.p.vy = -500;
 		    });
 		},
-
-		step: function(dt) {
-			if(this.p.vy === 0 && !this.muerto){
-				this.p.vy = -500;
-			}
-			
-		},
-
-		morir: function(self) {
-			self.muerto = true;
-
-			this.play("die");
-			//this.p.vy = 300;
-			setTimeout(function(){ self.destroy(); }, 500);
-		}
-
 	});
 
 	Q.Sprite.extend("Princess", {
 		init: function(p) {
 			this._super(p, { asset: "princess.png" });
+
+			this.on("hit.sprite",function(collision) {
+      			if(collision.obj.isA("Player")) {
+      				Q.stage().pause();
+        			Q.stageScene("endGame", 2, { label: "You Won!" }); 
+       
+      			}
+    		});
 		}
 	});
 
@@ -153,8 +123,9 @@ window.addEventListener("load",function() {
 	    init: function(p) {
 	        this._super(p, { sheet: "coin", sprite: "coin_anim", gravity : 0 });
 	        this.add('2d, tween, animation');
-	        this.on("hit.sprite",function(collision) {
+	        this.on("bump.left,bump.right,bump.bottom,bump.top",function(collision) {
 	        	if(collision.obj.isA("Player")) {
+	        		this.del('2d');
 					this.animate({ y: this.p.y - 50 }, 1/4, Q.Easing.Quadratic.InOut, { callback: function() {this.destroy()}});
 					Q.state.inc("coin", 1);
 				}
@@ -162,8 +133,32 @@ window.addEventListener("load",function() {
 	    }            
 	});
 
+	Q.component("defaultEnemy", {
+		added: function(){
+			this.entity.on("bump.left,bump.right,bump.bottom", function(collision) {
+				if(collision.obj.isA("Player")) { 
+					collision.obj.bajarVidas();
+				}
+			});
+
+			this.entity.on("bump.top",function(collision) {
+				if(collision.obj.isA("Player")) { 
+					this.play("die");
+					collision.obj.p.vy = -300;
+					
+				}
+			});
+
+			this.entity.on("die", function(){ 
+				this.destroy(); 
+			});
+
+			
+		},
+	});
+
 	Q.scene("level1", function(stage){
-		Q.state.reset({ coin: 0});
+		Q.state.reset({ coin: 0, live: 3});
 		Q.stageTMX("level.tmx", stage);
 		stage.add("viewport");
 
@@ -180,10 +175,10 @@ window.addEventListener("load",function() {
                 ["Goomba", { x: 1600, y: 496, vx: 100 }],
                 ["Bloopa", { x: 1240, y: 482 }],
                 ["Princess", { x: 2021, y: 452 }],
-                ["Coin", {x: 250, y: 470}],
-                ["Coin", {x: 350, y: 470}],
-                ["Coin", {x: 450, y: 470}],
-                ["Coin", {x: 550, y: 470}]
+                ["Coin", { x: 250, y: 470 }],
+                ["Coin", { x: 350, y: 470 }],
+                ["Coin", { x: 450, y: 470 }],
+                ["Coin", { x: 550, y: 470 }]
         ];
 
         stage.loadAssets(levelAssets); 
@@ -219,6 +214,7 @@ window.addEventListener("load",function() {
 			Q.clearStages();
 		    Q.stageScene('level1');
 		    Q.stageScene("coin",1);
+		    Q.stageScene("live",2);
 		};
 
 	  	Q.input.on("confirm", function(){
@@ -232,21 +228,27 @@ window.addEventListener("load",function() {
 	});
 
 	Q.scene("coin", function(stage) {
-		var label = stage.insert(new Q.UI.Text({x: Q.width/2, y: 50, label: "Coins: 0"}));
+		var label = stage.insert(new Q.UI.Text({ x: Q.width/2, y: 50, label: "Coins: 0" }));
 		Q.state.on("change.coin", this, function( coin ) {
 			label.p.label = "Coins: " + coin;
 		});	
 	});
 
-	Q.loadTMX("level.tmx, mario_small.png, mario_small.json, goomba.png, goomba.json, bloopa.png, bloopa.json, princess.png, mainTitle.png, coin.png, coin.json", function() {
+	Q.scene("live", function(stage) {
+		var label = stage.insert(new Q.UI.Text({ x: Q.width/2, y: 100, label: "Lives: 3" }));
+		Q.state.on("change.live", this, function( live ) {
+			label.p.label = "Lives: " + live;
+		});	
+	});
+
+	Q.load(["mario_small.png", "mario_small.json", "goomba.png", "goomba.json", "bloopa.png", "bloopa.json", "princess.png", "mainTitle.png", "coin.png", "coin.json"], function() {
   		Q.compileSheets("mario_small.png","mario_small.json");
   		Q.compileSheets("goomba.png","goomba.json");
   		Q.compileSheets("bloopa.png","bloopa.json");
   		Q.compileSheets("coin.png","coin.json");
-
-  		Q.stageScene("mainTitle");
-  		
+  		Q.loadTMX("level.tmx", function() {
+  			Q.stageScene("mainTitle");
+  		});
 	});
 
-	
 });
